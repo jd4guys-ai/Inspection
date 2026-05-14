@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Site Inspection Report Builder</title>
+  <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+  <style>
+    :root{
+      --bg:#f4f8fc;
+      --panel:#ffffff;
+      --text:#1f2937;
+      --muted:#6b7280;
+      --line:#d7e3f0;
+      --primary:#0063bd;
+      --primary-dark:#004b8f;
+      --accent:#dcecff;
+      --danger:#b91c1c;
+      --shadow:0 4px 18px rgba(0,0,0,.08);
+      --radius:14px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+    header{
+      background:linear-gradient(90deg,var(--primary),var(--primary-dark));
+      color:#fff;
+      padding:18px 20px;
+      position:sticky;
+      top:0;
+      z-index:10;
+      box-shadow:var(--shadow);
+    }
+    header h1{margin:0 0 6px;font-size:20px}
+    header p{margin:0;color:#dbeafe;font-size:14px}
+    .wrap{max-width:1500px;margin:0 auto;padding:16px}
+    .toolbar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;align-items:center}
+    button,input,textarea,select{font:inherit}
+    button{
+      border:0;border-radius:10px;padding:10px 14px;background:var(--primary);
+      color:#fff;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.08)
+    }
+    button:hover{background:var(--primary-dark)}
+    button.secondary{background:#e5e7eb;color:#111827}
+    button.secondary:hover{background:#d1d5db}
+    button.danger{background:#dc2626}
+    button.danger:hover{background:#b91c1c}
+    .file-btn{
+      display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:10px;
+      padding:10px 14px;background:var(--primary);color:#fff;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.08)
+    }
+    .file-btn:hover{background:var(--primary-dark)}
+    .grid{display:grid;grid-template-columns:1.15fr 1fr;gap:16px;align-items:start}
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
+    .panel h2{margin:0 0 12px;font-size:18px;color:var(--primary)}
+    .job-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .field{display:flex;flex-direction:column;gap:6px}
+    .full{grid-column:1/-1}
+    label{font-size:13px;color:#374151;font-weight:600}
+    input[type="text"],input[type="date"],textarea,select{
+      width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff
+    }
+    textarea{min-height:90px;resize:vertical}
+    .checks{display:flex;flex-wrap:wrap;gap:10px 14px;padding-top:4px}
+    .checks label{display:flex;align-items:center;gap:8px;font-weight:500;color:#111827}
+    .muted{color:var(--muted);font-size:13px}
+    .items{display:flex;flex-direction:column;gap:14px}
+    .item-card{border:1px solid var(--line);border-radius:var(--radius);background:#fff;overflow:hidden}
+    .item-head{
+      display:flex;justify-content:space-between;align-items:center;padding:12px 14px;
+      background:var(--accent);border-bottom:1px solid var(--line);gap:10px
+    }
+    .item-head strong{font-size:16px;color:var(--primary-dark)}
+    .item-body{padding:14px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .status-row{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+    .status-row-2{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+    .status-row label,.status-row-2 label{
+      border:1px solid var(--line);border-radius:10px;padding:10px;font-size:13px;display:flex;align-items:center;gap:8px;background:#fff
+    }
+    .thumbs{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+    .thumb{width:130px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+    .thumb img{width:130px;height:90px;object-fit:cover;display:block}
+    .thumb .cap{padding:8px}
+    .thumb .cap input{width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:8px;font-size:12px}
+    .preview{display:flex;flex-direction:column;gap:12px;max-height:calc(100vh - 140px);overflow:auto}
+    .preview-card{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff}
+    .preview-card h3{margin:0 0 6px;font-size:15px;color:var(--primary)}
+    .preview-item{border-top:1px solid #eef2f7;padding-top:10px;margin-top:10px;font-size:13px}
+    .preview-item:first-of-type{border-top:0;padding-top:0;margin-top:0}
+    .footer-note{margin-top:12px;color:var(--muted);font-size:12px}
+    .status{font-size:13px;color:var(--muted);margin-left:8px}
+    .hidden-file{position:absolute;left:-9999px;opacity:0;width:1px;height:1px}
+    .export-group{display:flex;flex-wrap:wrap;gap:8px}
+    @media (max-width:1100px){.grid{grid-template-columns:1fr}.preview{max-height:none}}
+    @media (max-width:720px){
+      .job-grid,.item-body,.status-row,.status-row-2{grid-template-columns:1fr}
+      .toolbar,.export-group{flex-direction:column}
+      button,.file-btn{width:100%}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Site Inspection Report Builder</h1>
+    <p>Centra branded inspection form with photo capture and PDF exports.</p>
+  </header>
+
+  <div class="wrap">
+    <div class="toolbar">
+      <button id="addItemBtn">Add item</button>
+      <button id="saveDraftBtn" class="secondary">Save draft locally</button>
+      <button id="loadDraftBtn" class="secondary">Load draft</button>
+      <div class="export-group">
+        <button id="exportFullBtn">Full Inspection</button>
+        <button id="exportCustomerBtn">Customer Site Inspection</button>
+        <button id="exportInternalBtn">Internal Site Inspection</button>
+      </div>
+      <button id="resetBtn" class="danger">Reset sample</button>
+      <span id="status" class="status">Ready.</span>
+    </div>
+
+    <div class="grid">
+      <section class="panel">
+        <h2>General Job Info</h2>
+        <div class="job-grid">
+          <div class="field"><label>Customer name</label><input id="customerName" type="text" /></div>
+          <div class="field"><label>Site address</label><input id="siteAddress" type="text" /></div>
+          <div class="field"><label>Work order number</label><input id="workOrderNumber" type="text" /></div>
+          <div class="field"><label>Date</label><input id="jobDate" type="date" /></div>
+          <div class="field"><label>Technician name</label><input id="techName" type="text" /></div>
+          <div class="field full">
+            <label>Service details</label>
+            <div class="checks" id="serviceChecks">
+              <label><input type="checkbox" data-key="picturesTaken"> Pictures Taken</label>
+              <label><input type="checkbox" data-key="returnVisit"> Return Visit</label>
+              <label><input type="checkbox" data-key="productNotRequired"> Product Not Required</label>
+              <label><input type="checkbox" data-key="productRequired"> Product Required</label>
+              <label><input type="checkbox" data-key="serviceComplete"> Service Complete</label>
+              <label><input type="checkbox" data-key="customerPresent"> Customer Present</label>
+              <label><input type="checkbox" data-key="supervisorReview"> Service Managers Review Required</label>
+            </div>
+          </div>
+          <div class="field full"><label>General notes</label><textarea id="generalNotes"></textarea></div>
+        </div>
+      </section>
+
+      <section class="panel preview">
+        <h2>Live Preview</h2>
+        <div class="preview-card">
+          <h3>Report preview</h3>
+          <div id="livePreview"></div>
+        </div>
+      </section>
+
+      <section class="panel" style="grid-column:1/-1;">
+        <h2>Inspection Items</h2>
+        <div class="muted">Enter each item manually. Add photos and captions as needed.</div>
+        <div id="items" class="items"></div>
+        <div class="footer-note">Each item can have multiple photos and a caption for each photo.</div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'siteInspectionDraftCentraV4';
+    const defaultState = {
+      customerName: 'Crystal Creek Homes',
+      siteAddress: '129 Juniper Ridge Crescent SW, Calgary, AB',
+      workOrderNumber: 'Y2A015Z',
+      jobDate: new Date().toISOString().slice(0, 10),
+      techName: 'Technician Name',
+      generalNotes: 'Sample draft loaded. Replace with real inspection data.',
+      serviceDetails: { picturesTaken: true, returnVisit: false, productNotRequired: false, productRequired: true, serviceComplete: false, customerPresent: true, supervisorReview: false },
+      items: [
+        { itemNumber: '0001', location: 'BASEMENT - REAR-REC', pass: true, productIssue: false, installIssue: false, chargeStatus: '', notes: 'Sample note.', photos: [] },
+        { itemNumber: '0002', location: 'REAR-BED', pass: true, productIssue: true, installIssue: false, chargeStatus: 'warranty', notes: 'Sample issue description.', photos: [] }
+      ]
+    };
+
+    let state = deepClone(defaultState);
+    const $ = id => document.getElementById(id);
+
+    function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
+    function setStatus(text) { $('status').textContent = text; }
+
+    function syncInputsFromState() {
+      $('customerName').value = state.customerName || '';
+      $('siteAddress').value = state.siteAddress || '';
+      $('workOrderNumber').value = state.workOrderNumber || '';
+      $('jobDate').value = state.jobDate || '';
+      $('techName').value = state.techName || '';
+      $('generalNotes').value = state.generalNotes || '';
+      document.querySelectorAll('#serviceChecks input[type="checkbox"]').forEach(cb => { cb.checked = !!state.serviceDetails?.[cb.dataset.key]; });
+    }
+
+    function syncStateFromInputs() {
+      state.customerName = $('customerName').value.trim();
+      state.siteAddress = $('siteAddress').value.trim();
+      state.workOrderNumber = $('workOrderNumber').value.trim();
+      state.jobDate = $('jobDate').value;
+      state.techName = $('techName').value.trim();
+      state.generalNotes = $('generalNotes').value.trim();
+      state.serviceDetails = {};
+      document.querySelectorAll('#serviceChecks input[type="checkbox"]').forEach(cb => { state.serviceDetails[cb.dataset.key] = cb.checked; });
+    }
+
+    function createItem() {
+      const next = String((state.items?.length || 0) + 1).padStart(4, '0');
+      return { itemNumber: next, location: '', pass: false, productIssue: false, installIssue: false, chargeStatus: '', notes: '', photos: [] };
+    }
+
+    function renderItems() {
+      const container = $('items');
+      container.innerHTML = '';
+      state.items.forEach((item, index) => {
+        const card = document.createElement('div');
+        card.className = 'item-card';
+        card.innerHTML = `
+          <div class="item-head">
+            <strong>Item ${index + 1}</strong>
+            <button class="danger" data-remove="${index}">Remove item</button>
+          </div>
+          <div class="item-body">
+            <div class="field"><label>Item number</label><input type="text" data-field="itemNumber" data-index="${index}" value="${escapeAttr(item.itemNumber)}"></div>
+            <div class="field"><label>Location</label><input type="text" data-field="location" data-index="${index}" value="${escapeAttr(item.location)}"></div>
+
+            <div class="field full">
+              <label>Pass / Product Issue / Install Issue</label>
+              <div class="status-row">
+                <label><input type="checkbox" data-pass="${index}" ${item.pass ? 'checked' : ''}> Pass</label>
+                <label><input type="checkbox" data-product="${index}" ${item.productIssue ? 'checked' : ''}> Product Issue</label>
+                <label><input type="checkbox" data-install="${index}" ${item.installIssue ? 'checked' : ''}> Install Issue</label>
+              </div>
+            </div>
+
+            <div class="field full">
+              <label>Chargeable / Warranty</label>
+              <div class="status-row-2">
+                <label><input type="radio" name="charge-${index}" value="" data-charge="${index}" ${!item.chargeStatus ? 'checked' : ''}> None</label>
+                <label><input type="radio" name="charge-${index}" value="chargeable" data-charge="${index}" ${item.chargeStatus === 'chargeable' ? 'checked' : ''}> Chargeable</label>
+                <label><input type="radio" name="charge-${index}" value="warranty" data-charge="${index}" ${item.chargeStatus === 'warranty' ? 'checked' : ''}> Warranty</label>
+              </div>
+            </div>
+
+            <div class="field full"><label>Notes</label><textarea data-field="notes" data-index="${index}">${escapeHtml(item.notes || '')}</textarea></div>
+            <div class="field full">
+              <label>Photos</label>
+              <div class="checks" style="margin-bottom:8px;">
+                <label class="file-btn">
+                  Take / Add Photo
+                  <input type="file" accept="image/*" capture="environment" multiple class="hidden-file" data-photo="${index}">
+                </label>
+              </div>
+              <div class="thumbs" id="thumbs-${index}"></div>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+      wireItemEvents();
+      renderAllThumbs();
+      updateLivePreview();
+    }
+
+    function wireItemEvents() {
+      document.querySelectorAll('[data-field]').forEach(input => { input.oninput = e => { state.items[+e.target.dataset.index][e.target.dataset.field] = e.target.value; updateLivePreview(); }; });
+      document.querySelectorAll('[data-pass]').forEach(cb => { cb.onchange = e => { state.items[+e.target.dataset.pass].pass = e.target.checked; updateLivePreview(); }; });
+      document.querySelectorAll('[data-product]').forEach(cb => { cb.onchange = e => { state.items[+e.target.dataset.product].productIssue = e.target.checked; updateLivePreview(); }; });
+      document.querySelectorAll('[data-install]').forEach(cb => { cb.onchange = e => { state.items[+e.target.dataset.install].installIssue = e.target.checked; updateLivePreview(); }; });
+      document.querySelectorAll('[data-charge]').forEach(radio => { radio.onchange = e => { if (e.target.checked) state.items[+e.target.dataset.charge].chargeStatus = e.target.value; updateLivePreview(); }; });
+      document.querySelectorAll('[data-photo]').forEach(input => { input.onchange = handlePhotoUpload; });
+      document.querySelectorAll('[data-remove]').forEach(btn => { btn.onclick = () => { state.items.splice(+btn.dataset.remove, 1); renderItems(); }; });
+    }
+
+    async function handlePhotoUpload(e) {
+      try {
+        const index = +e.target.dataset.photo;
+        const files = [...e.target.files];
+        if (!files.length) return;
+        for (const file of files) {
+          const resized = await resizeImage(file, 1600, 1600, 0.85);
+          state.items[index].photos.push({ name: file.name, caption: '', dataUrl: resized });
+        }
+        renderItems();
+      } catch (err) {
+        console.error(err);
+        alert('Photo upload failed. See console for details.');
+      } finally {
+        e.target.value = '';
+      }
+    }
+
+    function renderAllThumbs() { state.items.forEach((_, index) => renderThumbs(index)); }
+    function renderThumbs(index) {
+      const thumbs = document.getElementById(`thumbs-${index}`);
+      if (!thumbs) return;
+      thumbs.innerHTML = '';
+      (state.items[index].photos || []).forEach((photo, pIndex) => {
+        const div = document.createElement('div');
+        div.className = 'thumb';
+        div.innerHTML = `<img src="${photo.dataUrl}" alt=""><div class="cap"><input type="text" placeholder="Caption" data-caption="${index}-${pIndex}" value="${escapeAttr(photo.caption || '')}"></div>`;
+        thumbs.appendChild(div);
+      });
+      thumbs.querySelectorAll('[data-caption]').forEach(inp => { inp.oninput = e => { const [i, p] = e.target.dataset.caption.split('-').map(Number); state.items[i].photos[p].caption = e.target.value; }; });
+    }
+
+    function updateLivePreview() {
+      syncStateFromInputs();
+      const box = $('livePreview');
+      box.innerHTML = `<div class="preview-card" style="border:none;padding:0;"><strong>${escapeHtml(state.customerName || 'Customer')}</strong><br><span class="muted">${escapeHtml(state.siteAddress || '')}</span><div class="preview-item"><div><strong>WO:</strong> ${escapeHtml(state.workOrderNumber || '')}</div><div><strong>Date:</strong> ${escapeHtml(state.jobDate || '')}</div><div><strong>Tech:</strong> ${escapeHtml(state.techName || '')}</div></div>${state.items.map(it => {
+        const statuses = [];
+        if (it.pass) statuses.push('Pass');
+        if (it.productIssue) statuses.push('Product Issue');
+        if (it.installIssue) statuses.push('Install Issue');
+        return `<div class="preview-item"><div><strong>${escapeHtml(it.itemNumber || '')}</strong> — ${escapeHtml(it.location || '')}</div><div>Status: ${escapeHtml(statuses.length ? statuses.join(', ') : 'None')}</div><div>Charge: ${escapeHtml(capitalize(it.chargeStatus || 'none'))}</div><div>${escapeHtml(it.notes || '')}</div><div>${(it.photos || []).length} photo(s)</div></div>`;
+      }).join('')}</div>`;
+    }
+
+    function saveDraft() { syncStateFromInputs(); localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); setStatus('Draft saved locally.'); alert('Draft saved locally.'); }
+    function loadDraft() { const raw = localStorage.getItem(STORAGE_KEY); if (!raw) return alert('No saved draft found.'); state = JSON.parse(raw); syncInputsFromState(); renderItems(); setStatus('Draft loaded.'); }
+    function resetSample() { state = deepClone(defaultState); syncInputsFromState(); renderItems(); setStatus('Sample reset.'); }
+
+    async function exportPdf(mode, title) {
+      try {
+        syncStateFromInputs();
+        const items = mode === 'full'
+          ? state.items
+          : mode === 'customer'
+            ? state.items.filter(it => !(it.pass || it.chargeStatus === 'warranty'))
+            : state.items.filter(it => it.chargeStatus === 'warranty');
+
+        const { PDFDocument, StandardFonts, rgb } = PDFLib;
+        const pdfDoc = await PDFDocument.create();
+        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+        const pageWidth = 612, pageHeight = 792, margin = 40, contentWidth = pageWidth - margin * 2, bottomLimit = 70;
+
+        let page = pdfDoc.addPage([pageWidth, pageHeight]);
+        let y = pageHeight - 118;
+        let pageNum = 1;
+
+        function drawHeaderFooter(pg, num) {
+          pg.drawRectangle({ x: 0, y: pageHeight - 92, width: pageWidth, height: 92, color: rgb(0.00, 0.39, 0.75) });
+          pg.drawText('Centra', { x: margin, y: pageHeight - 38, size: 18, font: bold, color: rgb(1, 1, 1) });
+          pg.drawText(title, { x: margin + 110, y: pageHeight - 38, size: 18, font: bold, color: rgb(1, 1, 1) });
+          pg.drawText(`${state.customerName || ''}${state.workOrderNumber ? ' • ' + state.workOrderNumber : ''}`, { x: margin + 110, y: pageHeight - 53, size: 10, font, color: rgb(0.92, 0.96, 1) });
+          pg.drawText(`Page ${num}`, { x: pageWidth - margin - 55, y: 20, size: 10, font, color: rgb(0.4, 0.4, 0.4) });
+        }
+
+        function newPage() {
+          page = pdfDoc.addPage([pageWidth, pageHeight]);
+          pageNum += 1;
+          y = pageHeight - 118;
+          drawHeaderFooter(page, pageNum);
+        }
+
+        function ensureSpace(spaceNeeded) {
+          if (y - spaceNeeded < bottomLimit) newPage();
+        }
+
+        function drawTitle(text) {
+          ensureSpace(24);
+          page.drawText(text, { x: margin, y, size: 14, font: bold, color: rgb(0.00, 0.39, 0.75) });
+          y -= 18;
+        }
+
+        function drawLines(text, size = 10, gap = 14) {
+          const lines = wrapText(text, font, size, contentWidth);
+          ensureSpace(lines.length * gap + 4);
+          for (const line of lines) {
+            page.drawText(line, { x: margin, y, size, font, color: rgb(0.1, 0.1, 0.1) });
+            y -= gap;
+          }
+        }
+
+        function drawLabelValue(label, value) {
+          drawLines(`${label}: ${value || '-'}`, 10, 14);
+        }
+
+        drawHeaderFooter(page, pageNum);
+        drawTitle('Job Information');
+        drawLabelValue('Customer', state.customerName);
+        drawLabelValue('Site address', state.siteAddress);
+        drawLabelValue('Work order', state.workOrderNumber);
+        drawLabelValue('Date', state.jobDate);
+        drawLabelValue('Technician', state.techName);
+        const services = Object.entries(state.serviceDetails || {}).filter(([, v]) => v).map(([k]) => prettyKey(k)).join(', ') || '-';
+        drawLabelValue('Service details', services);
+        if (state.generalNotes) {
+          drawTitle('General Notes');
+          drawLines(state.generalNotes, 10, 14);
+        }
+
+        drawTitle('Inspection Items');
+        for (const item of items) {
+          const header = `${item.itemNumber || ''}  ${item.location || ''}`.trim() || 'Item';
+          ensureSpace(100);
+          page.drawRectangle({ x: margin, y: y - 4, width: contentWidth, height: 18, color: rgb(0.00, 0.39, 0.75) });
+          page.drawText(header, { x: margin + 6, y: y + 2, size: 11, font: bold, color: rgb(1, 1, 1) });
+          y -= 24;
+
+          const statuses = [];
+          if (item.pass) statuses.push('Pass');
+          if (item.productIssue) statuses.push('Product Issue');
+          if (item.installIssue) statuses.push('Install Issue');
+          drawLines(`Status: ${statuses.length ? statuses.join(', ') : 'None'}`, 10, 14);
+          drawLines(`Charge status: ${capitalize(item.chargeStatus || 'none')}`, 10, 14);
+          if (item.notes) drawLines(`Notes: ${item.notes}`, 10, 14);
+
+          if (item.photos && item.photos.length) {
+            drawLines('Photos:', 10, 14);
+            for (const photo of item.photos) {
+              ensureSpace(190);
+              const img = await pdfDoc.embedJpg(photo.dataUrl).catch(async () => await pdfDoc.embedPng(photo.dataUrl));
+              const maxW = 180, maxH = 120;
+              const scale = Math.min(maxW / img.width, maxH / img.height);
+              const w = img.width * scale;
+              const h = img.height * scale;
+              page.drawImage(img, { x: margin, y: y - h, width: w, height: h });
+              y -= h + 6;
+              if (photo.caption) drawLines(`Caption: ${photo.caption}`, 9, 12);
+              y -= 4;
+            }
+          }
+          y -= 6;
+        }
+
+        pdfDoc.getPages().forEach((pg, idx) => drawHeaderFooter(pg, idx + 1));
+        const bytes = await pdfDoc.save();
+        downloadBlob(new Blob([bytes], { type: 'application/pdf' }), `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${state.workOrderNumber || 'export'}.pdf`);
+        setStatus('Export complete.');
+      } catch (err) {
+        console.error(err);
+        alert('Export failed. Check console.');
+        setStatus('Export failed.');
+      }
+    }
+
+    function wrapText(text, font, size, maxWidth) {
+      const words = String(text || '').split(/\s+/);
+      const lines = [];
+      let line = '';
+      for (const word of words) {
+        const test = line ? `${line} ${word}` : word;
+        if (font.widthOfTextAtSize(test, size) <= maxWidth) line = test;
+        else { if (line) lines.push(line); line = word; }
+      }
+      if (line) lines.push(line);
+      return lines.length ? lines : [''];
+    }
+
+    function prettyKey(key) { return key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()); }
+    function capitalize(s) { return String(s || '').replace(/\b\w/g, c => c.toUpperCase()); }
+    function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'amp;','<':'lt;','>':'gt;','"':'quot;',"'":'&#39;'}[m])); }
+    function escapeAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;'); }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    async function resizeImage(file, maxWidth, maxHeight, quality = 0.85) {
+      const dataUrl = await fileToDataURL(file);
+      const img = await loadImage(dataUrl);
+      const scale = Math.min(maxWidth / img.width, maxHeight / img.height, 1);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/jpeg', quality);
+    }
+
+    function loadImage(src) { return new Promise((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = reject; img.src = src; }); }
+    function fileToDataURL(file) { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file); }); }
+
+    function saveDraft() { syncStateFromInputs(); localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); setStatus('Draft saved locally.'); alert('Draft saved locally.'); }
+    function loadDraft() { const raw = localStorage.getItem(STORAGE_KEY); if (!raw) return alert('No saved draft found.'); state = JSON.parse(raw); syncInputsFromState(); renderItems(); setStatus('Draft loaded.'); }
+    function resetSample() { state = deepClone(defaultState); syncInputsFromState(); renderItems(); setStatus('Sample reset.'); }
+
+    $('addItemBtn').addEventListener('click', () => { state.items.push(createItem()); renderItems(); setStatus('Item added.'); });
+    $('saveDraftBtn').addEventListener('click', saveDraft);
+    $('loadDraftBtn').addEventListener('click', loadDraft);
+    $('exportFullBtn').addEventListener('click', () => exportPdf('full', 'Full Inspection'));
+    $('exportCustomerBtn').addEventListener('click', () => exportPdf('customer', 'Customer Site Inspection'));
+    $('exportInternalBtn').addEventListener('click', () => exportPdf('internal', 'Internal Site Inspection'));
+    $('resetBtn').addEventListener('click', resetSample);
+    ['customerName','siteAddress','workOrderNumber','jobDate','techName','generalNotes'].forEach(id => $(id).addEventListener('input', updateLivePreview));
+    document.querySelectorAll('#serviceChecks input[type="checkbox"]').forEach(cb => cb.addEventListener('change', updateLivePreview));
+
+    syncInputsFromState();
+    renderItems();
+    updateLivePreview();
+  </script>
+</body>
+</html>
